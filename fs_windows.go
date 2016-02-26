@@ -5,84 +5,45 @@ import (
 	"path/filepath"
 )
 
-func mkdirAll(path string, perm os.FileMode) error {
-	p, wd, err := longPath(path)
-	if err != nil {
-		return newPathError(path, p, wd, err)
-	}
-	if err := os.MkdirAll(p, perm); err != nil {
-		return newPathError(path, p, wd, err)
-	}
-	return nil
-}
+// WARN (CEV): Investigate handling of environment variables and path expansion.
 
-func open(name string) (*os.File, error) {
-	p, wd, err := longPath(name)
-	if err != nil {
-		return nil, newPathError(name, p, wd, err)
-	}
-	f, err := os.Open(name)
-	if err != nil {
-		return nil, newPathError(name, p, wd, err)
-	}
-	return f, nil
-}
+// Max is 255 but use 245 to be safe.
+const winMaxLength = 245
 
-func removeAll(path string) error {
-	p, wd, err := longPath(path)
-	if err != nil {
-		return newPathError(path, p, wd, err)
-	}
-	if err := os.RemoveAll(p); err != nil {
-		return newPathError(path, p, wd, err)
-	}
-	return nil
-}
-
-func symlink(oldname, newname string) error {
-	op, wd, err := longPath(oldname)
-	if err != nil {
-		return newPathError(oldname, op, wd, err)
-	}
-	np, _, err := longPath(newname)
-	if err != nil {
-		return newPathError(newname, np, wd, err)
-	}
-	if err := os.Symlink(op, np); err != nil {
-		return newPathError(op, np, wd, err)
-	}
-	return nil
-}
-
-func openFile(name string, flag int, perm os.FileMode) (*os.File, error) {
-	p, wd, err := longPath(name)
-	if err != nil {
-		return nil, newPathError(name, p, wd, err)
-	}
-	f, err := os.OpenFile(p, flag, perm)
-	if err != nil {
-		return nil, newPathError(name, p, wd, err)
-	}
-	return f, nil
-}
-
-func longPath(p string) (path, wd string, err error) {
-	path, wd, err = absPath(p)
-	if err != nil {
-		return
-	}
-	if len(path) > 245 {
+func longPath(p string) (string, error) {
+	path, err := absPath(p)
+	if err == nil && len(path) >= winMaxLength {
 		path = `\\?\` + path
 	}
-	return
+	return path, err
 }
 
-func absPath(path string) (abs, wd string, err error) {
+func absPath(path string) (string, error) {
 	if filepath.IsAbs(path) {
-		abs = filepath.Clean(path)
-	} else {
-		wd, err = os.Getwd()
-		abs = filepath.Join(wd, path)
+		return filepath.Clean(path), nil
 	}
-	return
+	wd, err := os.Getwd()
+	return filepath.Join(wd, path), err
+}
+
+func osPath(path string) (string, error) {
+	p, err := absPath(path)
+	if err != nil {
+		return "", err
+	}
+	if len(p) >= winMaxLength {
+		p = `\\?\` + p
+	}
+	return p, nil
+}
+
+func Path(path string) (string, error) {
+	p, err := absPath(path)
+	if err != nil {
+		return "", err
+	}
+	if len(p) >= winMaxLength {
+		p = `\\?\` + p
+	}
+	return p, nil
 }
