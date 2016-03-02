@@ -5,8 +5,6 @@ import (
 	"path/filepath"
 )
 
-// WARN (CEV): Investigate handling of environment variables and path expansion.
-
 // Max is 255 but use 245 to be safe.
 const winMaxLength = 245
 
@@ -27,4 +25,21 @@ func Path(path string) (string, error) {
 		p = `\\?\` + p
 	}
 	return p, nil
+}
+
+func newPathError(op, path string, err error) error {
+	return &os.PathError{
+		Op:   "fs: " + op,
+		Path: path,
+		Err:  err,
+	}
+}
+
+func newLinkError(op, oldname, newname string, err error) error {
+	return &os.LinkError{
+		Op:  "fs: " + op,
+		Old: oldname,
+		New: newname,
+		Err: err,
+	}
 }

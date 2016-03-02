@@ -2,6 +2,7 @@
 
 package fs
 
+/*
 import (
 	"fmt"
 	"runtime"
@@ -47,3 +48,4 @@ func (e *pathError) Error() string {
 		"  Function: %s"
 	return fmt.Sprintf(format, e.err, e.oldPath, e.newPath, e.wd, e.caller)
 }
+*/
