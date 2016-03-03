@@ -238,3 +238,6 @@ func Stat(name string) (os.FileInfo, error) {
 	}
 	return os.Stat(p)
 }
+
+// lstat is overridden in tests.
+var lstat = Lstat

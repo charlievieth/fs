@@ -1,13 +1,18 @@
-package fs
+// Copyright 2009 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package os_test
 
 import (
 	"bytes"
 	"errors"
 	"flag"
 	"fmt"
+	"internal/testenv"
 	"io"
 	"io/ioutil"
-	"os"
+	. "os"
 	osexec "os/exec"
 	"path/filepath"
 	"reflect"
@@ -31,14 +36,6 @@ var dot = []string{
 	"types.go",
 	"stat_darwin.go",
 	"stat_linux.go",
-}
-
-// WARN
-func init() {
-	goroot := runtime.GOROOT()
-	if goroot == "" {
-
-	}
 }
 
 type sysDir struct {
@@ -73,7 +70,7 @@ var sysdir = func() *sysDir {
 		}
 	case "windows":
 		return &sysDir{
-			os.Getenv("SystemRoot") + "\\system32\\drivers\\etc",
+			Getenv("SystemRoot") + "\\system32\\drivers\\etc",
 			[]string{
 				"networks",
 				"protocol",
@@ -134,17 +131,17 @@ func equal(name1, name2 string) (r bool) {
 func localTmp() string {
 	switch runtime.GOOS {
 	case "android", "windows":
-		return os.TempDir()
+		return TempDir()
 	case "darwin":
 		switch runtime.GOARCH {
 		case "arm", "arm64":
-			return os.TempDir()
+			return TempDir()
 		}
 	}
 	return "/tmp"
 }
 
-func newFile(testName string, t *testing.T) (f *os.File) {
+func newFile(testName string, t *testing.T) (f *File) {
 	f, err := ioutil.TempFile(localTmp(), "_Go_"+testName)
 	if err != nil {
 		t.Fatalf("TempFile %s: %s", testName, err)
@@ -290,19 +287,17 @@ func testReaddir(dir string, contents []string, t *testing.T) {
 }
 
 func TestReaddirnames(t *testing.T) {
-	// CEV: Changed dir "." => "testdata"
-	testReaddirnames("testdata", dot, t) // WARN
+	testReaddirnames(".", dot, t)
 	testReaddirnames(sysdir.name, sysdir.files, t)
 }
 
 func TestReaddir(t *testing.T) {
-	// CEV: Changed dir "." => "testdata"
-	testReaddir("testdata", dot, t)
+	testReaddir(".", dot, t)
 	testReaddir(sysdir.name, sysdir.files, t)
 }
 
 // Read the directory one entry at a time.
-func smallReaddirnames(file *os.File, length int, t *testing.T) []string {
+func smallReaddirnames(file *File, length int, t *testing.T) []string {
 	names := make([]string, length)
 	count := 0
 	for {
@@ -333,7 +328,7 @@ func TestReaddirnamesOneAtATime(t *testing.T) {
 	case "darwin":
 		switch runtime.GOARCH {
 		case "arm", "arm64":
-			wd, err := os.Getwd()
+			wd, err := Getwd()
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -342,7 +337,7 @@ func TestReaddirnamesOneAtATime(t *testing.T) {
 	case "plan9":
 		dir = "/bin"
 	case "windows":
-		dir = os.Getenv("SystemRoot") + "\\system32"
+		dir = Getenv("SystemRoot") + "\\system32"
 	}
 	file, err := Open(dir)
 	if err != nil {
@@ -387,7 +382,7 @@ func TestReaddirNValues(t *testing.T) {
 		f.Close()
 	}
 
-	var d *os.File
+	var d *File
 	openDir := func() {
 		var err error
 		d, err = Open(dir)
@@ -471,13 +466,13 @@ func TestReaddirStatFailures(t *testing.T) {
 		*LstatP = Lstat
 	}()
 	var xerr error // error to return for x
-	*LstatP = func(path string) (os.FileInfo, error) {
+	*LstatP = func(path string) (FileInfo, error) {
 		if xerr != nil && strings.HasSuffix(path, "x") {
 			return nil, xerr
 		}
 		return Lstat(path)
 	}
-	readDir := func() ([]os.FileInfo, error) {
+	readDir := func() ([]FileInfo, error) {
 		d, err := Open(dir)
 		if err != nil {
 			t.Fatal(err)
@@ -485,14 +480,14 @@ func TestReaddirStatFailures(t *testing.T) {
 		defer d.Close()
 		return d.Readdir(-1)
 	}
-	mustReadDir := func(testName string) []os.FileInfo {
+	mustReadDir := func(testName string) []FileInfo {
 		fis, err := readDir()
 		if err != nil {
 			t.Fatalf("%s: Readdir: %v", testName, err)
 		}
 		return fis
 	}
-	names := func(fis []os.FileInfo) []string {
+	names := func(fis []FileInfo) []string {
 		s := make([]string, len(fis))
 		for i, fi := range fis {
 			s[i] = fi.Name()
@@ -506,7 +501,7 @@ func TestReaddirStatFailures(t *testing.T) {
 		t.Errorf("initial readdir got %q; want %q", got, want)
 	}
 
-	xerr = os.ErrNotExist
+	xerr = ErrNotExist
 	if got, want := names(mustReadDir("with x disappearing")),
 		[]string{"good1", "good2"}; !reflect.DeepEqual(got, want) {
 		t.Errorf("with x disappearing, got %q; want %q", got, want)
@@ -565,7 +560,7 @@ func TestHardLink(t *testing.T) {
 	none := "hardlinktestnone"
 	err = Link(none, none)
 	// Check the returned error is well-formed.
-	if lerr, ok := err.(*os.LinkError); !ok || lerr.Error() == "" {
+	if lerr, ok := err.(*LinkError); !ok || lerr.Error() == "" {
 		t.Errorf("link %q, %q failed to return a valid error", none, none)
 	}
 
@@ -578,7 +573,7 @@ func TestHardLink(t *testing.T) {
 	if err != nil {
 		t.Fatalf("stat %q failed: %v", from, err)
 	}
-	if !os.SameFile(tostat, fromstat) {
+	if !SameFile(tostat, fromstat) {
 		t.Errorf("link %q, %q did not create hard link", to, from)
 	}
 }
@@ -589,7 +584,7 @@ func chtmpdir(t *testing.T) func() {
 	if runtime.GOOS != "darwin" || (runtime.GOARCH != "arm" && runtime.GOARCH != "arm64") {
 		return func() {} // only needed on darwin/arm{,64}
 	}
-	oldwd, err := os.Getwd()
+	oldwd, err := Getwd()
 	if err != nil {
 		t.Fatalf("chtmpdir: %v", err)
 	}
@@ -637,28 +632,28 @@ func TestSymlink(t *testing.T) {
 	if err != nil {
 		t.Fatalf("stat %q failed: %v", to, err)
 	}
-	if tostat.Mode()&os.ModeSymlink != 0 {
+	if tostat.Mode()&ModeSymlink != 0 {
 		t.Fatalf("stat %q claims to have found a symlink", to)
 	}
 	fromstat, err := Stat(from)
 	if err != nil {
 		t.Fatalf("stat %q failed: %v", from, err)
 	}
-	if !os.SameFile(tostat, fromstat) {
+	if !SameFile(tostat, fromstat) {
 		t.Errorf("symlink %q, %q did not create symlink", to, from)
 	}
 	fromstat, err = Lstat(from)
 	if err != nil {
 		t.Fatalf("lstat %q failed: %v", from, err)
 	}
-	if fromstat.Mode()&os.ModeSymlink == 0 {
+	if fromstat.Mode()&ModeSymlink == 0 {
 		t.Fatalf("symlink %q, %q did not create symlink", to, from)
 	}
 	fromstat, err = Stat(from)
 	if err != nil {
 		t.Fatalf("stat %q failed: %v", from, err)
 	}
-	if fromstat.Mode()&os.ModeSymlink != 0 {
+	if fromstat.Mode()&ModeSymlink != 0 {
 		t.Fatalf("stat %q did not follow symlink", from)
 	}
 	s, err := Readlink(from)
@@ -761,7 +756,7 @@ func TestRenameOverwriteDest(t *testing.T) {
 	if err == nil {
 		t.Errorf("from file %q still exists", from)
 	}
-	if err != nil && !os.IsNotExist(err) {
+	if err != nil && !IsNotExist(err) {
 		t.Fatalf("stat from: %v", err)
 	}
 	toFi, err := Stat(to)
@@ -782,7 +777,7 @@ func TestRenameFailed(t *testing.T) {
 
 	err := Rename(from, to)
 	switch err := err.(type) {
-	case *os.LinkError:
+	case *LinkError:
 		if err.Op != "rename" {
 			t.Errorf("rename %q, %q: err.Op: want %q, got %q", from, to, "rename", err.Op)
 		}
@@ -798,18 +793,18 @@ func TestRenameFailed(t *testing.T) {
 		// cleanup whatever was placed in "renameto"
 		Remove(to)
 	default:
-		t.Errorf("rename %q, %q: expected %T, got %T %v", from, to, new(os.LinkError), err, err)
+		t.Errorf("rename %q, %q: expected %T, got %T %v", from, to, new(LinkError), err, err)
 	}
 }
 
 func exec(t *testing.T, dir, cmd string, args []string, expect string) {
-	r, w, err := os.Pipe()
+	r, w, err := Pipe()
 	if err != nil {
 		t.Fatalf("Pipe: %v", err)
 	}
 	defer r.Close()
-	attr := &os.ProcAttr{Dir: dir, Files: []*os.File{nil, w, os.Stderr}}
-	p, err := os.StartProcess(cmd, args, attr)
+	attr := &ProcAttr{Dir: dir, Files: []*File{nil, w, Stderr}}
+	p, err := StartProcess(cmd, args, attr)
 	if err != nil {
 		t.Fatalf("StartProcess: %v", err)
 	}
@@ -821,14 +816,39 @@ func exec(t *testing.T, dir, cmd string, args []string, expect string) {
 
 	fi1, _ := Stat(strings.TrimSpace(output))
 	fi2, _ := Stat(expect)
-	if !os.SameFile(fi1, fi2) {
+	if !SameFile(fi1, fi2) {
 		t.Errorf("exec %q returned %q wanted %q",
 			strings.Join(append([]string{cmd}, args...), " "), output, expect)
 	}
 	p.Wait()
 }
 
-func checkMode(t *testing.T, path string, mode os.FileMode) {
+func TestStartProcess(t *testing.T) {
+	testenv.MustHaveExec(t)
+
+	var dir, cmd string
+	var args []string
+	switch runtime.GOOS {
+	case "android":
+		t.Skip("android doesn't have /bin/pwd")
+	case "windows":
+		cmd = Getenv("COMSPEC")
+		dir = Getenv("SystemRoot")
+		args = []string{"/c", "cd"}
+	default:
+		cmd = "/bin/pwd"
+		dir = "/"
+		args = []string{}
+	}
+	cmddir, cmdbase := filepath.Split(cmd)
+	args = append([]string{cmdbase}, args...)
+	// Test absolute executable path.
+	exec(t, dir, cmd, args, dir)
+	// Test relative executable path.
+	exec(t, cmddir, cmdbase, args, cmddir)
+}
+
+func checkMode(t *testing.T, path string, mode FileMode) {
 	dir, err := Stat(path)
 	if err != nil {
 		t.Fatalf("Stat %q (looking for mode %#o): %s", path, mode, err)
@@ -858,7 +878,7 @@ func TestChmod(t *testing.T) {
 	checkMode(t, f.Name(), 0123)
 }
 
-func checkSize(t *testing.T, f *os.File, size int64) {
+func checkSize(t *testing.T, f *File, size int64) {
 	dir, err := f.Stat()
 	if err != nil {
 		t.Fatalf("Stat %q (looking for size %d): %s", f.Name(), size, err)
@@ -896,11 +916,11 @@ func TestTruncate(t *testing.T) {
 	checkSize(t, f, 0)
 	f.Write([]byte("hello, world\n"))
 	checkSize(t, f, 13)
-	os.Truncate(f.Name(), 10)
+	Truncate(f.Name(), 10)
 	checkSize(t, f, 10)
-	os.Truncate(f.Name(), 1024)
+	Truncate(f.Name(), 1024)
 	checkSize(t, f, 1024)
-	os.Truncate(f.Name(), 0)
+	Truncate(f.Name(), 0)
 	checkSize(t, f, 0)
 	_, err := f.Write([]byte("surprise!"))
 	if err == nil {
@@ -1001,7 +1021,7 @@ func TestChdirAndGetwd(t *testing.T) {
 			dirs = []string{d1, d2}
 		}
 	}
-	oldwd := os.Getenv("PWD")
+	oldwd := Getenv("PWD")
 	for mode := 0; mode < 2; mode++ {
 		for _, d := range dirs {
 			if mode == 0 {
@@ -1016,17 +1036,17 @@ func TestChdirAndGetwd(t *testing.T) {
 				fd1.Close()
 			}
 			if d == "/tmp" {
-				os.Setenv("PWD", "/tmp")
+				Setenv("PWD", "/tmp")
 			}
-			pwd, err1 := os.Getwd()
-			os.Setenv("PWD", oldwd)
+			pwd, err1 := Getwd()
+			Setenv("PWD", oldwd)
 			err2 := fd.Chdir()
 			if err2 != nil {
 				// We changed the current directory and cannot go back.
 				// Don't let the tests continue; they'll scribble
 				// all over some other directory.
-				fmt.Fprintf(os.Stderr, "fchdir back to dot failed: %s\n", err2)
-				os.Exit(1)
+				fmt.Fprintf(Stderr, "fchdir back to dot failed: %s\n", err2)
+				Exit(1)
 			}
 			if err != nil {
 				fd.Close()
@@ -1063,7 +1083,7 @@ func TestProgWideChdir(t *testing.T) {
 				runtime.LockOSThread()
 			}
 			<-c
-			pwd, err := os.Getwd()
+			pwd, err := Getwd()
 			if err != nil {
 				t.Errorf("Getwd on goroutine %d: %v", i, err)
 				return
@@ -1071,7 +1091,7 @@ func TestProgWideChdir(t *testing.T) {
 			cpwd <- pwd
 		}(i)
 	}
-	oldwd, err := os.Getwd()
+	oldwd, err := Getwd()
 	if err != nil {
 		t.Fatalf("Getwd: %v", err)
 	}
@@ -1090,7 +1110,7 @@ func TestProgWideChdir(t *testing.T) {
 	}
 	// OS X sets TMPDIR to a symbolic link.
 	// So we resolve our working directory again before the test.
-	d, err = os.Getwd()
+	d, err = Getwd()
 	if err != nil {
 		t.Fatalf("Getwd: %v", err)
 	}
@@ -1129,7 +1149,7 @@ func TestSeek(t *testing.T) {
 	for i, tt := range tests {
 		off, err := f.Seek(tt.in, tt.whence)
 		if off != tt.out || err != nil {
-			if e, ok := err.(*os.PathError); ok && e.Err == syscall.EINVAL && tt.out > 1<<32 {
+			if e, ok := err.(*PathError); ok && e.Err == syscall.EINVAL && tt.out > 1<<32 {
 				// Reiserfs rejects the big seeks.
 				// https://golang.org/issue/91
 				break
@@ -1148,17 +1168,17 @@ type openErrorTest struct {
 var openErrorTests = []openErrorTest{
 	{
 		sfdir + "/no-such-file",
-		os.O_RDONLY,
+		O_RDONLY,
 		syscall.ENOENT,
 	},
 	{
 		sfdir,
-		os.O_WRONLY,
+		O_WRONLY,
 		syscall.EISDIR,
 	},
 	{
 		sfdir + "/" + sfname + "/no-such-file",
-		os.O_WRONLY,
+		O_WRONLY,
 		syscall.ENOTDIR,
 	},
 }
@@ -1171,7 +1191,7 @@ func TestOpenError(t *testing.T) {
 			f.Close()
 			continue
 		}
-		perr, ok := err.(*os.PathError)
+		perr, ok := err.(*PathError)
 		if !ok {
 			t.Errorf("Open(%q, %d) returns error of %T type; want *PathError", tt.path, tt.mode, err)
 		}
@@ -1212,12 +1232,12 @@ func TestOpenNoName(t *testing.T) {
 
 func run(t *testing.T, cmd []string) string {
 	// Run /bin/hostname and collect output.
-	r, w, err := os.Pipe()
+	r, w, err := Pipe()
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer r.Close()
-	p, err := os.StartProcess("/bin/hostname", []string{"hostname"}, &os.ProcAttr{Files: []*os.File{nil, w, os.Stderr}})
+	p, err := StartProcess("/bin/hostname", []string{"hostname"}, &ProcAttr{Files: []*File{nil, w, Stderr}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1245,7 +1265,7 @@ func run(t *testing.T, cmd []string) string {
 }
 
 func testWindowsHostname(t *testing.T) {
-	hostname, err := os.Hostname()
+	hostname, err := Hostname()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1257,6 +1277,35 @@ func testWindowsHostname(t *testing.T) {
 	want := strings.Trim(string(out), "\r\n")
 	if hostname != want {
 		t.Fatalf("Hostname() = %q, want %q", hostname, want)
+	}
+}
+
+func TestHostname(t *testing.T) {
+	// There is no other way to fetch hostname on windows, but via winapi.
+	// On Plan 9 it can be taken from #c/sysname as Hostname() does.
+	switch runtime.GOOS {
+	case "android", "plan9":
+		t.Skipf("%s doesn't have /bin/hostname", runtime.GOOS)
+	case "windows":
+		testWindowsHostname(t)
+		return
+	}
+
+	testenv.MustHaveExec(t)
+
+	// Check internal Hostname() against the output of /bin/hostname.
+	// Allow that the internal Hostname returns a Fully Qualified Domain Name
+	// and the /bin/hostname only returns the first component
+	hostname, err := Hostname()
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	want := run(t, []string{"/bin/hostname"})
+	if hostname != want {
+		i := strings.Index(hostname, ".")
+		if i < 0 || hostname[0:i] != want {
+			t.Errorf("Hostname() = %q, want %q", hostname, want)
+		}
 	}
 }
 
@@ -1321,15 +1370,15 @@ func TestAppend(t *testing.T) {
 	defer chtmpdir(t)()
 	const f = "append.txt"
 	defer Remove(f)
-	s := writeFile(t, f, os.O_CREATE|os.O_TRUNC|os.O_RDWR, "new")
+	s := writeFile(t, f, O_CREATE|O_TRUNC|O_RDWR, "new")
 	if s != "new" {
 		t.Fatalf("writeFile: have %q want %q", s, "new")
 	}
-	s = writeFile(t, f, os.O_APPEND|os.O_RDWR, "|append")
+	s = writeFile(t, f, O_APPEND|O_RDWR, "|append")
 	if s != "new|append" {
 		t.Fatalf("writeFile: have %q want %q", s, "new|append")
 	}
-	s = writeFile(t, f, os.O_CREATE|os.O_APPEND|os.O_RDWR, "|append")
+	s = writeFile(t, f, O_CREATE|O_APPEND|O_RDWR, "|append")
 	if s != "new|append|append" {
 		t.Fatalf("writeFile: have %q want %q", s, "new|append|append")
 	}
@@ -1337,15 +1386,15 @@ func TestAppend(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Remove: %v", err)
 	}
-	s = writeFile(t, f, os.O_CREATE|os.O_APPEND|os.O_RDWR, "new&append")
+	s = writeFile(t, f, O_CREATE|O_APPEND|O_RDWR, "new&append")
 	if s != "new&append" {
 		t.Fatalf("writeFile: after append have %q want %q", s, "new&append")
 	}
-	s = writeFile(t, f, os.O_CREATE|os.O_RDWR, "old")
+	s = writeFile(t, f, O_CREATE|O_RDWR, "old")
 	if s != "old&append" {
 		t.Fatalf("writeFile: after create have %q want %q", s, "old&append")
 	}
-	s = writeFile(t, f, os.O_CREATE|os.O_TRUNC|os.O_RDWR, "new")
+	s = writeFile(t, f, O_CREATE|O_TRUNC|O_RDWR, "new")
 	if s != "new" {
 		t.Fatalf("writeFile: after truncate have %q want %q", s, "new")
 	}
@@ -1374,7 +1423,7 @@ func TestStatDirWithTrailingSlash(t *testing.T) {
 }
 
 func TestNilProcessStateString(t *testing.T) {
-	var ps *os.ProcessState
+	var ps *ProcessState
 	s := ps.String()
 	if s != "<nil>" {
 		t.Errorf("(*ProcessState)(nil).String() = %q, want %q", s, "<nil>")
@@ -1404,7 +1453,7 @@ func TestSameFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Stat(a): %v", err)
 	}
-	if !os.SameFile(ia1, ia2) {
+	if !SameFile(ia1, ia2) {
 		t.Errorf("files should be same")
 	}
 
@@ -1412,22 +1461,22 @@ func TestSameFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Stat(b): %v", err)
 	}
-	if os.SameFile(ia1, ib) {
+	if SameFile(ia1, ib) {
 		t.Errorf("files should be different")
 	}
 }
 
 func TestDevNullFile(t *testing.T) {
-	f, err := Open(os.DevNull)
+	f, err := Open(DevNull)
 	if err != nil {
-		t.Fatalf("Open(%s): %v", os.DevNull, err)
+		t.Fatalf("Open(%s): %v", DevNull, err)
 	}
 	defer f.Close()
 	fi, err := f.Stat()
 	if err != nil {
-		t.Fatalf("Stat(%s): %v", os.DevNull, err)
+		t.Fatalf("Stat(%s): %v", DevNull, err)
 	}
-	name := filepath.Base(os.DevNull)
+	name := filepath.Base(DevNull)
 	if fi.Name() != name {
 		t.Fatalf("wrong file name have %v want %v", fi.Name(), name)
 	}
@@ -1447,14 +1496,14 @@ func TestLargeWriteToConsole(t *testing.T) {
 		b[i] = '.'
 	}
 	b[len(b)-1] = '\n'
-	n, err := os.Stdout.Write(b)
+	n, err := Stdout.Write(b)
 	if err != nil {
 		t.Fatalf("Write to os.Stdout failed: %v", err)
 	}
 	if n != len(b) {
 		t.Errorf("Write to os.Stdout should return %d; got %d", len(b), n)
 	}
-	n, err = os.Stderr.Write(b)
+	n, err = Stderr.Write(b)
 	if err != nil {
 		t.Fatalf("Write to os.Stderr failed: %v", err)
 	}
@@ -1501,33 +1550,112 @@ func TestReadAtEOF(t *testing.T) {
 	}
 }
 
+func testKillProcess(t *testing.T, processKiller func(p *Process)) {
+	testenv.MustHaveExec(t)
+
+	// Re-exec the test binary itself to emulate "sleep 1".
+	cmd := osexec.Command(Args[0], "-test.run", "TestSleep")
+	err := cmd.Start()
+	if err != nil {
+		t.Fatalf("Failed to start test process: %v", err)
+	}
+	go func() {
+		time.Sleep(100 * time.Millisecond)
+		processKiller(cmd.Process)
+	}()
+	err = cmd.Wait()
+	if err == nil {
+		t.Errorf("Test process succeeded, but expected to fail")
+	}
+}
+
+// TestSleep emulates "sleep 1". It is a helper for testKillProcess, so we
+// don't have to rely on an external "sleep" command being available.
+func TestSleep(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping in short mode")
+	}
+	time.Sleep(time.Second)
+}
+
+func TestKillStartProcess(t *testing.T) {
+	testKillProcess(t, func(p *Process) {
+		err := p.Kill()
+		if err != nil {
+			t.Fatalf("Failed to kill test process: %v", err)
+		}
+	})
+}
+
+func TestGetppid(t *testing.T) {
+	if runtime.GOOS == "plan9" {
+		// TODO: golang.org/issue/8206
+		t.Skipf("skipping test on plan9; see issue 8206")
+	}
+
+	testenv.MustHaveExec(t)
+
+	if Getenv("GO_WANT_HELPER_PROCESS") == "1" {
+		fmt.Print(Getppid())
+		Exit(0)
+	}
+
+	cmd := osexec.Command(Args[0], "-test.run=TestGetppid")
+	cmd.Env = append(Environ(), "GO_WANT_HELPER_PROCESS=1")
+
+	// verify that Getppid() from the forked process reports our process id
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("Failed to spawn child process: %v %q", err, string(output))
+	}
+
+	childPpid := string(output)
+	ourPid := fmt.Sprintf("%d", Getpid())
+	if childPpid != ourPid {
+		t.Fatalf("Child process reports parent process id '%v', expected '%v'", childPpid, ourPid)
+	}
+}
+
+func TestKillFindProcess(t *testing.T) {
+	testKillProcess(t, func(p *Process) {
+		p2, err := FindProcess(p.Pid)
+		if err != nil {
+			t.Fatalf("Failed to find test process: %v", err)
+		}
+		err = p2.Kill()
+		if err != nil {
+			t.Fatalf("Failed to kill test process: %v", err)
+		}
+	})
+}
+
 var nilFileMethodTests = []struct {
 	name string
-	f    func(*os.File) error
+	f    func(*File) error
 }{
-	{"Chdir", func(f *os.File) error { return f.Chdir() }},
-	{"Close", func(f *os.File) error { return f.Close() }},
-	{"Chmod", func(f *os.File) error { return f.Chmod(0) }},
-	{"Chown", func(f *os.File) error { return f.Chown(0, 0) }},
-	{"Read", func(f *os.File) error { _, err := f.Read(make([]byte, 0)); return err }},
-	{"ReadAt", func(f *os.File) error { _, err := f.ReadAt(make([]byte, 0), 0); return err }},
-	{"Readdir", func(f *os.File) error { _, err := f.Readdir(1); return err }},
-	{"Readdirnames", func(f *os.File) error { _, err := f.Readdirnames(1); return err }},
-	{"Seek", func(f *os.File) error { _, err := f.Seek(0, 0); return err }},
-	{"Stat", func(f *os.File) error { _, err := f.Stat(); return err }},
-	{"Sync", func(f *os.File) error { return f.Sync() }},
-	{"Truncate", func(f *os.File) error { return f.Truncate(0) }},
-	{"Write", func(f *os.File) error { _, err := f.Write(make([]byte, 0)); return err }},
-	{"WriteAt", func(f *os.File) error { _, err := f.WriteAt(make([]byte, 0), 0); return err }},
-	{"WriteString", func(f *os.File) error { _, err := f.WriteString(""); return err }},
+	{"Chdir", func(f *File) error { return f.Chdir() }},
+	{"Close", func(f *File) error { return f.Close() }},
+	{"Chmod", func(f *File) error { return f.Chmod(0) }},
+	{"Chown", func(f *File) error { return f.Chown(0, 0) }},
+	{"Read", func(f *File) error { _, err := f.Read(make([]byte, 0)); return err }},
+	{"ReadAt", func(f *File) error { _, err := f.ReadAt(make([]byte, 0), 0); return err }},
+	{"Readdir", func(f *File) error { _, err := f.Readdir(1); return err }},
+	{"Readdirnames", func(f *File) error { _, err := f.Readdirnames(1); return err }},
+	{"Seek", func(f *File) error { _, err := f.Seek(0, 0); return err }},
+	{"Stat", func(f *File) error { _, err := f.Stat(); return err }},
+	{"Sync", func(f *File) error { return f.Sync() }},
+	{"Truncate", func(f *File) error { return f.Truncate(0) }},
+	{"Write", func(f *File) error { _, err := f.Write(make([]byte, 0)); return err }},
+	{"WriteAt", func(f *File) error { _, err := f.WriteAt(make([]byte, 0), 0); return err }},
+	{"WriteString", func(f *File) error { _, err := f.WriteString(""); return err }},
 }
 
 // Test that all File methods give ErrInvalid if the receiver is nil.
 func TestNilFileMethods(t *testing.T) {
 	for _, tt := range nilFileMethodTests {
-		var file *os.File
+		var file *File
 		got := tt.f(file)
-		if got != os.ErrInvalid {
+		if got != ErrInvalid {
 			t.Errorf("%v should fail when f is nil; got %v", tt.name, got)
 		}
 	}
