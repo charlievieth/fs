@@ -437,16 +437,6 @@ func TestReaddirNValues(t *testing.T) {
 	}
 }
 
-func touch(t *testing.T, name string) {
-	f, err := Create(name)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := f.Close(); err != nil {
-		t.Fatal(err)
-	}
-}
-
 // Readdir on a regular file should fail.
 func TestReaddirOfFile(t *testing.T) {
 	f, err := ioutil.TempFile("", "_Go_ReaddirOfFile")
