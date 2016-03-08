@@ -14,7 +14,6 @@ import (
 	"sync"
 	"syscall"
 	"testing"
-	"time"
 )
 
 var supportsSymlinks = true
@@ -824,67 +823,6 @@ func TestTruncate(t *testing.T) {
 	_, err := f.Write([]byte("surprise!"))
 	if err == nil {
 		checkSize(t, f, 13+9) // wrote at offset past where hello, world was.
-	}
-}
-
-// Use TempDir (via newFile) to make sure we're on a local file system,
-// so that timings are not distorted by latency and caching.
-// On NFS, timings can be off due to caching of meta-data on
-// NFS servers (Issue 848).
-func TestChtimes(t *testing.T) {
-	f := newFile("TestChtimes", t)
-	defer Remove(f.Name())
-
-	f.Write([]byte("hello, world\n"))
-	f.Close()
-
-	testChtimes(t, f.Name())
-}
-
-// Use TempDir (via newDir) to make sure we're on a local file system,
-// so that timings are not distorted by latency and caching.
-// On NFS, timings can be off due to caching of meta-data on
-// NFS servers (Issue 848).
-func TestChtimesDir(t *testing.T) {
-	name := newDir("TestChtimes", t)
-	defer RemoveAll(name)
-
-	testChtimes(t, name)
-}
-
-func testChtimes(t *testing.T, name string) {
-	st, err := Stat(name)
-	if err != nil {
-		t.Fatalf("Stat %s: %s", name, err)
-	}
-	preStat := st
-
-	// Move access and modification time back a second
-	at := Atime(preStat)
-	mt := preStat.ModTime()
-	err = Chtimes(name, at.Add(-time.Second), mt.Add(-time.Second))
-	if err != nil {
-		t.Fatalf("Chtimes %s: %s", name, err)
-	}
-
-	st, err = Stat(name)
-	if err != nil {
-		t.Fatalf("second Stat %s: %s", name, err)
-	}
-	postStat := st
-
-	/* Plan 9, NaCl:
-		Mtime is the time of the last change of content.  Similarly, atime is set whenever the
-	    contents are accessed; also, it is set whenever mtime is set.
-	*/
-	pat := Atime(postStat)
-	pmt := postStat.ModTime()
-	if !pat.Before(at) && runtime.GOOS != "plan9" && runtime.GOOS != "nacl" {
-		t.Errorf("AccessTime didn't go backwards; was=%d, after=%d", at, pat)
-	}
-
-	if !pmt.Before(mt) {
-		t.Errorf("ModTime didn't go backwards; was=%d, after=%d", mt, pmt)
 	}
 }
 
