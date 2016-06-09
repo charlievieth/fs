@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -23,13 +24,19 @@ func MakePath() string {
 
 func TestMkdirAll(t *testing.T) {
 	path := MakePath()
-	defer func() {
-		if err := os.RemoveAll(path); err != nil {
-			t.Fatalf("TestMkdirAll: RemoveAll %s", err)
-		}
-	}()
+	defer os.RemoveAll(path)
 	err := MkdirAll(MakePath(), 0755)
 	if err != nil {
 		t.Fatalf("TestMkdirAll: %s", err)
+	}
+	if _, err := Stat(path); err != nil {
+		t.Fatalf("TestMkdirAll: Stat failed %s", err)
+	}
+	// Make sure the handling of long paths is case-insensitive
+	if _, err := Stat(strings.ToLower(path)); err != nil {
+		t.Fatalf("TestMkdirAll: Stat failed %s", err)
+	}
+	if err := os.RemoveAll(path); err != nil {
+		t.Fatalf("TestMkdirAll: RemoveAll %s", err)
 	}
 }

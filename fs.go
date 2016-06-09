@@ -5,41 +5,57 @@ import (
 	"time"
 )
 
-// TODO:
-// 	 - PathError: make sure that returned error type is the same as the
-// 	   error type returned from the standard library
-// 	 - Test 255 char MAX_PATH and adjust the cutoff that we use (245)
+/*
+  The below code contains portions of the Go standard library, specically
+  the os package.
+
+  Copyright (c) 2009 The Go Authors. All rights reserved.
+
+  Redistribution and use in source and binary forms, with or without
+  modification, are permitted provided that the following conditions are
+  met:
+
+     * Redistributions of source code must retain the above copyright
+  notice, this list of conditions and the following disclaimer.
+     * Redistributions in binary form must reproduce the above
+  copyright notice, this list of conditions and the following disclaimer
+  in the documentation and/or other materials provided with the
+  distribution.
+     * Neither the name of Google Inc. nor the names of its
+  contributors may be used to endorse or promote products derived from
+  this software without specific prior written permission.
+
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+*/
 
 // Chdir changes the current working directory to the named directory.
 // If there is an error, it will be of type *PathError.
 func Chdir(dir string) error {
-	p, err := Path(dir)
-	if err != nil {
-		return newPathError("chdir", dir, err)
-	}
-	return os.Chdir(p)
+	return chdir(dir)
 }
 
 // Chmod changes the mode of the named file to mode.
 // If the file is a symbolic link, it changes the mode of the link's target.
 // If there is an error, it will be of type *PathError.
 func Chmod(name string, mode os.FileMode) error {
-	p, err := Path(name)
-	if err != nil {
-		return newPathError("chmod", name, err)
-	}
-	return os.Chmod(p, mode)
+	return chmod(name, mode)
 }
 
 // Chown changes the numeric uid and gid of the named file.
 // If the file is a symbolic link, it changes the uid and gid of the link's target.
 // If there is an error, it will be of type *PathError.
 func Chown(name string, uid, gid int) error {
-	p, err := Path(name)
-	if err != nil {
-		return newPathError("chown", name, err)
-	}
-	return os.Chown(p, uid, gid)
+	return chown(name, uid, gid)
 }
 
 // Chtimes changes the access and modification times of the named
@@ -49,46 +65,26 @@ func Chown(name string, uid, gid int) error {
 // less precise time unit.
 // If there is an error, it will be of type *PathError.
 func Chtimes(name string, atime time.Time, mtime time.Time) error {
-	p, err := Path(name)
-	if err != nil {
-		return newPathError("chtimes", name, err)
-	}
-	return os.Chtimes(p, atime, mtime)
+	return chtimes(name, atime, mtime)
 }
 
 // Lchown changes the numeric uid and gid of the named file.
 // If the file is a symbolic link, it changes the uid and gid of the link itself.
 // If there is an error, it will be of type *PathError.
 func Lchown(name string, uid, gid int) error {
-	p, err := Path(name)
-	if err != nil {
-		return newPathError("lchown", name, err)
-	}
-	return os.Lchown(p, uid, gid)
+	return lchown(name, uid, gid)
 }
 
 // Link creates newname as a hard link to the oldname file.
 // If there is an error, it will be of type *LinkError.
 func Link(oldname, newname string) error {
-	op, err := Path(oldname)
-	if err != nil {
-		return newLinkError("link", oldname, newname, err)
-	}
-	np, err := Path(newname)
-	if err != nil {
-		return newLinkError("link", oldname, newname, err)
-	}
-	return os.Link(op, np)
+	return link(oldname, newname)
 }
 
 // Mkdir creates a new directory with the specified name and permission bits.
 // If there is an error, it will be of type *PathError.
 func Mkdir(name string, perm os.FileMode) error {
-	p, err := Path(name)
-	if err != nil {
-		return newPathError("mkdir", name, err)
-	}
-	return os.Mkdir(p, perm)
+	return mkdir(name, perm)
 }
 
 // MkdirAll creates a directory named path,
@@ -99,31 +95,19 @@ func Mkdir(name string, perm os.FileMode) error {
 // If path is already a directory, MkdirAll does nothing
 // and returns nil.
 func MkdirAll(path string, perm os.FileMode) error {
-	p, err := Path(path)
-	if err != nil {
-		return err
-	}
-	return os.MkdirAll(p, perm)
+	return mkdirall(path, perm)
 }
 
 // Readlink returns the destination of the named symbolic link.
 // If there is an error, it will be of type *PathError.
 func Readlink(name string) (string, error) {
-	p, err := Path(name)
-	if err != nil {
-		return "", newPathError("readlink", name, err)
-	}
-	return os.Readlink(p)
+	return readlink(name)
 }
 
 // Remove removes the named file or directory.
 // If there is an error, it will be of type *PathError.
 func Remove(name string) error {
-	p, err := Path(name)
-	if err != nil {
-		return newPathError("remove", name, err)
-	}
-	return os.Remove(p)
+	return remove(name)
 }
 
 // RemoveAll removes path and any children it contains.
@@ -131,39 +115,19 @@ func Remove(name string) error {
 // it encounters.  If the path does not exist, RemoveAll
 // returns nil (no error).
 func RemoveAll(path string) error {
-	p, err := Path(path)
-	if err != nil {
-		return err
-	}
-	return os.RemoveAll(p)
+	return removeall(path)
 }
 
 // Rename renames (moves) a file. OS-specific restrictions might apply.
 // If there is an error, it will be of type *LinkError.
 func Rename(oldpath, newpath string) error {
-	op, err := Path(oldpath)
-	if err != nil {
-		return newLinkError("rename", oldpath, newpath, err)
-	}
-	np, err := Path(newpath)
-	if err != nil {
-		return newLinkError("rename", oldpath, newpath, err)
-	}
-	return os.Rename(op, np)
+	return rename(oldpath, newpath)
 }
 
 // Symlink creates newname as a symbolic link to oldname.
 // If there is an error, it will be of type *LinkError.
 func Symlink(oldname, newname string) error {
-	op, err := Path(oldname)
-	if err != nil {
-		return newLinkError("symlink", oldname, newname, err)
-	}
-	np, err := Path(newname)
-	if err != nil {
-		return newLinkError("symlink", oldname, newname, err)
-	}
-	return os.Symlink(op, np)
+	return symlink(oldname, newname)
 }
 
 // File
@@ -174,20 +138,12 @@ func Symlink(oldname, newname string) error {
 // O_RDWR.
 // If there is an error, it will be of type *PathError.
 func Create(name string) (*os.File, error) {
-	p, err := Path(name)
-	if err != nil {
-		return nil, newPathError("create", name, err)
-	}
-	return os.Create(p)
+	return create(name)
 }
 
 // NewFile returns a new File with the given file descriptor and name.
 func NewFile(fd uintptr, name string) *os.File {
-	p, err := Path(name)
-	if err != nil {
-		return os.NewFile(fd, name)
-	}
-	return os.NewFile(fd, p)
+	return newfile(fd, name)
 }
 
 // Open opens the named file for reading.  If successful, methods on
@@ -195,11 +151,7 @@ func NewFile(fd uintptr, name string) *os.File {
 // descriptor has mode O_RDONLY.
 // If there is an error, it will be of type *PathError.
 func Open(name string) (*os.File, error) {
-	p, err := Path(name)
-	if err != nil {
-		return nil, newPathError("open", name, err)
-	}
-	return os.Open(p)
+	return open(name)
 }
 
 // OpenFile is the generalized open call; most users will use Open
@@ -208,11 +160,7 @@ func Open(name string) (*os.File, error) {
 // methods on the returned File can be used for I/O.
 // If there is an error, it will be of type *PathError.
 func OpenFile(name string, flag int, perm os.FileMode) (*os.File, error) {
-	p, err := Path(name)
-	if err != nil {
-		return nil, newPathError("openfile", name, err)
-	}
-	return os.OpenFile(p, flag, perm)
+	return openfile(name, flag, perm)
 }
 
 // FileInfo
@@ -222,19 +170,11 @@ func OpenFile(name string, flag int, perm os.FileMode) (*os.File, error) {
 // describes the symbolic link.  Lstat makes no attempt to follow the link.
 // If there is an error, it will be of type *PathError.
 func Lstat(name string) (os.FileInfo, error) {
-	p, err := Path(name)
-	if err != nil {
-		return nil, newPathError("lstat", name, err)
-	}
-	return os.Lstat(p)
+	return lstat(name)
 }
 
 // Stat returns a FileInfo describing the named file.
 // If there is an error, it will be of type *PathError.
 func Stat(name string) (os.FileInfo, error) {
-	p, err := Path(name)
-	if err != nil {
-		return nil, newPathError("stat", name, err)
-	}
-	return os.Stat(p)
+	return stat(name)
 }
