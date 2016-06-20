@@ -16,6 +16,8 @@ import (
 	"time"
 )
 
+func isSlash(c uint8) bool { return c == '\\' || c == '/' }
+
 func absPath(path string) (string, error) {
 	if filepath.IsAbs(path) {
 		return filepath.Clean(path), nil
@@ -23,6 +25,9 @@ func absPath(path string) (string, error) {
 	wd, err := os.Getwd()
 	if err != nil {
 		return "", err
+	}
+	if len(path) > 0 && isSlash(path[0]) {
+		return filepath.Join(filepath.VolumeName(wd), path), nil
 	}
 	return filepath.Join(wd, path), nil
 }
