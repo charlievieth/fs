@@ -10,9 +10,8 @@ import (
 	"testing"
 )
 
-func MakePath() string {
-	volume := os.TempDir() + string(filepath.Separator)
-	buf := bytes.NewBufferString(volume)
+func longPathName() string {
+	var buf bytes.Buffer
 	for i := 0; i < 2; i++ {
 		for i := byte('A'); i <= 'Z'; i++ {
 			buf.Write(bytes.Repeat([]byte{i}, 4))
@@ -22,13 +21,42 @@ func MakePath() string {
 	return filepath.Clean(buf.String())
 }
 
+func TestRemoveAll(t *testing.T) {
+	name := longPathName()
+	temp := os.TempDir()
+	path := filepath.Join(temp, name)
+	target := filepath.Join(temp, strings.Split(name, string(os.PathSeparator))[0])
+
+	err := MkdirAll(path, 0755)
+	if err != nil {
+		t.Fatalf("TestRemoveAll: %s", err)
+	}
+	defer os.RemoveAll(`\\?\` + target)
+
+	// TODO: cleanup on failure
+	if err := RemoveAll(target); err != nil {
+		t.Fatalf("TestRemoveAll: %s", err)
+	}
+	if _, err := Stat(path); err == nil {
+		t.Fatalf("TestRemoveAll: failed to remove directory: %s", path)
+	}
+	if _, err := Stat(target); err == nil {
+		t.Fatalf("TestRemoveAll: failed to remove directory: %s", target)
+	}
+}
+
 func TestMkdirAll(t *testing.T) {
-	path := MakePath()
-	defer os.RemoveAll(path)
-	err := MkdirAll(MakePath(), 0755)
+	name := longPathName()
+	temp := os.TempDir()
+	path := filepath.Join(temp, name)
+	target := filepath.Join(temp, strings.Split(name, string(os.PathSeparator))[0])
+
+	err := MkdirAll(path, 0755)
 	if err != nil {
 		t.Fatalf("TestMkdirAll: %s", err)
 	}
+	defer os.RemoveAll(`\\?\` + target)
+
 	if _, err := Stat(path); err != nil {
 		t.Fatalf("TestMkdirAll: Stat failed %s", err)
 	}
