@@ -37,7 +37,9 @@ func winPath(path string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if len(p) >= syscall.MAX_PATH-2 {
+	//https://msdn.microsoft.com/en-us/library/system.io.path.getfullpath(v=vs.110).aspx
+	//260 - 12 = 248
+	if len(p) >= syscall.MAX_PATH-12 {
 		if !strings.HasPrefix(p, `\\?\`) {
 			p = `\\?\` + p
 		}
