@@ -40,7 +40,6 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	osexec "os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -1092,56 +1091,6 @@ func TestOpenNoName(t *testing.T) {
 	if err == nil {
 		t.Fatal(`Open("") succeeded`)
 		f.Close()
-	}
-}
-
-func run(t *testing.T, cmd []string) string {
-	// Run /bin/hostname and collect output.
-	r, w, err := os.Pipe()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer r.Close()
-	p, err := os.StartProcess("/bin/hostname", []string{"hostname"}, &os.ProcAttr{Files: []*os.File{nil, w, os.Stderr}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	w.Close()
-
-	var b bytes.Buffer
-	io.Copy(&b, r)
-	_, err = p.Wait()
-	if err != nil {
-		t.Fatalf("run hostname Wait: %v", err)
-	}
-	err = p.Kill()
-	if err == nil {
-		t.Errorf("expected an error from Kill running 'hostname'")
-	}
-	output := b.String()
-	if n := len(output); n > 0 && output[n-1] == '\n' {
-		output = output[0 : n-1]
-	}
-	if output == "" {
-		t.Fatalf("%v produced no output", cmd)
-	}
-
-	return output
-}
-
-func testWindowsHostname(t *testing.T) {
-	hostname, err := os.Hostname()
-	if err != nil {
-		t.Fatal(err)
-	}
-	cmd := osexec.Command("hostname")
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("Failed to execute hostname command: %v %s", err, out)
-	}
-	want := strings.Trim(string(out), "\r\n")
-	if hostname != want {
-		t.Fatalf("Hostname() = %q, want %q", hostname, want)
 	}
 }
 
