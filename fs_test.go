@@ -48,6 +48,7 @@ import (
 	"testing"
 )
 
+// On Windows this is determined during program initialization.
 var supportsSymlinks = true
 
 var dot = []string{
@@ -485,6 +486,9 @@ func TestReaddirOfFile(t *testing.T) {
 }
 
 func TestHardLink(t *testing.T) {
+	if !supportsSymlinks {
+		t.Skip("Hard links are not supported on the current volume")
+	}
 	if runtime.GOOS == "plan9" {
 		t.Skip("skipping on plan9, hardlinks not supported")
 	}
@@ -556,7 +560,7 @@ func TestSymlink(t *testing.T) {
 		t.Skipf("skipping on %s", runtime.GOOS)
 	case "windows":
 		if !supportsSymlinks {
-			t.Skipf("skipping on %s", runtime.GOOS)
+			t.Skip("Symlinks are not supported on the current volume")
 		}
 	}
 	defer chtmpdir(t)()
@@ -623,7 +627,7 @@ func TestLongSymlink(t *testing.T) {
 		t.Skipf("skipping on %s", runtime.GOOS)
 	case "windows":
 		if !supportsSymlinks {
-			t.Skipf("skipping on %s", runtime.GOOS)
+			t.Skip("Symlinks are not supported on the current volume")
 		}
 	}
 	defer chtmpdir(t)()
