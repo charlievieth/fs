@@ -129,6 +129,38 @@ func TestRemoveAll(t *testing.T) {
 	}
 }
 
+func TestRenameLong(t *testing.T) {
+	oldtemp := tempDir(t)
+
+	// Create temp directory so we know it's name is unique,
+	// then delete it - this is our rename target.
+	newtemp := tempDir(t)
+	if err := os.RemoveAll(newtemp); err != nil {
+		t.Fatalf("TestRenameLong: %s", err)
+	}
+
+	long := longPathName()
+	oldpath := filepath.Join(oldtemp, long)
+	newpath := filepath.Join(newtemp, long)
+
+	err := MkdirAll(oldpath, 0755)
+	if err != nil {
+		t.Fatalf("TestRenameLong: %s", err)
+	}
+	defer os.RemoveAll(`\\?\` + oldtemp)
+
+	if err := Rename(oldtemp, newtemp); err != nil {
+		t.Fatalf("TestRenameLong: %s", err)
+	}
+
+	if _, err := Stat(oldpath); !os.IsNotExist(err) {
+		t.Fatalf("TestRenameLong: failed to rename directory: %s => %s", oldtemp, newtemp)
+	}
+	if _, err := Stat(newpath); err != nil {
+		t.Fatalf("TestRenameLong: failed to rename directory: %s => %s", oldtemp, newtemp)
+	}
+}
+
 func TestLeadingSpace(t *testing.T) {
 	const filename = " Leading Space.txt"
 	path := filepath.Join("./testdata/", filename)
